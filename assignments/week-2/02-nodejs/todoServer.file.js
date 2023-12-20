@@ -39,6 +39,8 @@
 
   Testing the server - run `npm run test-todoServer` command in terminal
  */
+const fs = require("fs");
+const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
 
@@ -46,55 +48,83 @@ const app = express();
 
 app.use(bodyParser.json());
 
-let todos = [];
-
 app.get("/todos", (req, res) => {
-  res.json(todos);
+  fs.readFile("todoList.txt", "utf8", function (err, data) {
+    if (err) throw err;
+    res.json(data ? JSON.parse(data) : {});
+  });
 });
 
 app.get("/todos/:id", (req, res) => {
   const id = req.params.id;
-  const todo = todos.find((item) => item.id === id);
-  if (!todo) {
-    res.status(404).send("Not Found");
-  }
+  fs.readFile("todoList.txt", "utf-8", (err, data) => {
+    let todos = data ? JSON.parse(data) : [];
+    const todo = todos.find((item) => item.id === id);
+    if (!todo) {
+      res.status(404).send("Not Found");
+    }
 
-  res.status(200).json(todo);
+    res.status(200).json(todo);
+  });
 });
 
 app.post("/todos", (req, res) => {
   const { title, completed, description } = req.body;
-  const id = JSON.stringify(Math.random() * 100 + 1);
+  const id = JSON.stringify(Math.floor(Math.random() * 100 + 1));
 
   const newTodo = { id, title, completed, description };
-  todos.push(newTodo);
-
-  res.status(201).json(newTodo);
+  fs.readFile("todoList.txt", "utf8", (err, data) => {
+    if (err) throw err;
+    let todos = data ? JSON.parse(data) : [];
+    todos.push(newTodo);
+    fs.writeFile("todoList.txt", JSON.stringify(todos), (err) => {
+      if (err) throw err;
+      res.status(201).json(newTodo);
+    });
+  });
 });
 
 app.put("/todos/:id", (req, res) => {
   const id = req.params.id;
-  const todoIndex = todos.findIndex((item) => item.id === id);
-
-  if (todoIndex === -1) {
-    res.status(404).send();
-  } else {
-    todos[todoIndex].title = req.body.title;
-    todos[todoIndex].description = req.body.description;
-    res.json(todos[todoIndex]);
-  }
+  fs.readFile("todoList.txt", "utf8", (err, data) => {
+    if (err) throw err;
+    let todos = data ? JSON.parse(data) : [];
+    const todoIndex = todos.findIndex((item) => item.id === id);
+    if (todoIndex === -1) {
+      res.status(404).send();
+    } else {
+      const updatedTodo = {
+        id: todos[todoIndex].id,
+        title: req.body.title,
+        description: req.body.description,
+      };
+      todos[todoIndex] = updatedTodo;
+      fs.writeFile("todoList.txt", JSON.stringify(todos), (err) => {
+        if (err) throw err;
+        res.status(200).json(updatedTodo);
+      });
+    }
+  });
 });
 
 app.delete("/todos/:id", (req, res) => {
   const id = req.params.id;
-  const todoIndex = todos.findIndex((item) => item.id === id);
+  fs.readFile("todoList.txt", "utf-8", (err, data) => {
+    if (err) throw err;
+    let todos = data ? JSON.parse(data) : [];
+    const todoIndex = todos.findIndex((item) => item.id === id);
 
-  if (todoIndex === -1) {
-    res.status(404).send();
-  }
+    if (todoIndex === -1) {
+      res.status(404).send();
+    }
 
-  todos = todos.filter((item) => item.id !== id);
-  res.status(200).send();
+    todos = todos.filter((item) => item.id !== id);
+    fs.writeFile("todoList.txt", JSON.stringify(todos), (err) => {
+      if (err) throw err;
+      res.status(200).send();
+    });
+    res.status(200).send();
+  });
 });
 
 app.all("*", (req, res) => {
